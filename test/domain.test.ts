@@ -9,6 +9,7 @@ import {
 const fixedNow = () => new Date("2026-01-15T10:30:00.000Z");
 
 describe("approval workflow domain", () => {
+  // snippet:test-happy-path-start
   it("creates and approves a standard request with explicit state and audit changes", () => {
     const created = createApprovalRequest(standardInput(), {
       id: "apr-standard",
@@ -35,7 +36,9 @@ describe("approval workflow domain", () => {
       ],
     });
   });
+  // snippet:test-happy-path-end
 
+  // snippet:test-finance-rule-start
   it("routes high-value requests to finance instead of accepting manager approval", () => {
     const created = createApprovalRequest(
       {
@@ -64,7 +67,9 @@ describe("approval workflow domain", () => {
       },
     });
   });
+  // snippet:test-finance-rule-end
 
+  // snippet:test-unauthorized-start
   it("rejects callers that do not have an approval role", () => {
     const created = createApprovalRequest(standardInput(), {
       id: "apr-unauthorized",
@@ -83,6 +88,7 @@ describe("approval workflow domain", () => {
       },
     });
   });
+  // snippet:test-unauthorized-end
 
   it("returns validation detail for malformed create requests", () => {
     const created = createApprovalRequest({

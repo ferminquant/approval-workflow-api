@@ -63,6 +63,7 @@ interface CreateOptions extends OperationOptions {
   id?: string;
 }
 
+// snippet:create-request-start
 export function createApprovalRequest(
   input: ApprovalRequestInput,
   options: CreateOptions = {},
@@ -102,7 +103,9 @@ export function createApprovalRequest(
     body: request,
   };
 }
+// snippet:create-request-end
 
+// snippet:approve-request-start
 export function approveRequest(
   request: ApprovalRequest,
   actor: Actor,
@@ -156,6 +159,7 @@ export function approveRequest(
     },
   };
 }
+// snippet:approve-request-end
 
 export function rejectRequest(
   request: ApprovalRequest,
