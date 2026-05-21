@@ -1,0 +1,373 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Approval Workflow API",
+    "version": "0.1.0",
+    "description": "A compact REST API example for approval workflow rules, explicit failures, and auditable state transitions."
+  },
+  "paths": {
+    "/approval-requests": {
+      "post": {
+        "summary": "Create an approval request",
+        "operationId": "createApprovalRequest",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequestInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request accepted and left pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/approval-requests/{requestId}/approve": {
+      "post": {
+        "summary": "Approve a pending request",
+        "operationId": "approveApprovalRequest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "$ref": "#/components/parameters/UserId"
+          },
+          {
+            "$ref": "#/components/parameters/UserRole"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ActorRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/RoleRequired"
+          },
+          "404": {
+            "$ref": "#/components/responses/RequestNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/StateConflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/BusinessRule"
+          }
+        }
+      }
+    },
+    "/approval-requests/{requestId}/reject": {
+      "post": {
+        "summary": "Reject a pending request",
+        "operationId": "rejectApprovalRequest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "$ref": "#/components/parameters/UserId"
+          },
+          {
+            "$ref": "#/components/parameters/UserRole"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reason"],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 12
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request rejected with an audit note",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/ActorRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/RoleRequired"
+          },
+          "404": {
+            "$ref": "#/components/responses/RequestNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/StateConflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "RequestId": {
+        "name": "requestId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "UserId": {
+        "name": "x-user-id",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "UserRole": {
+        "name": "x-user-role",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": ["requester", "manager", "finance"]
+        }
+      }
+    },
+    "responses": {
+      "ActorRequired": {
+        "description": "Decision route called without actor headers",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            }
+          }
+        }
+      },
+      "BusinessRule": {
+        "description": "Valid request blocked by workflow policy",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            }
+          }
+        }
+      },
+      "RequestNotFound": {
+        "description": "No approval request exists for the supplied id",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            }
+          }
+        }
+      },
+      "RoleRequired": {
+        "description": "The caller does not have an approval role",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            }
+          }
+        }
+      },
+      "StateConflict": {
+        "description": "The request is not in a pending state",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Payload failed validation",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorBody"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ApprovalRequestInput": {
+        "type": "object",
+        "required": ["title", "amount", "requesterId", "costCenter", "justification"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 8
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "requesterId": {
+            "type": "string",
+            "minLength": 3
+          },
+          "costCenter": {
+            "type": "string",
+            "pattern": "^CC-\\d{4}$"
+          },
+          "justification": {
+            "type": "string",
+            "minLength": 20
+          }
+        }
+      },
+      "ApprovalRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "amount",
+          "requesterId",
+          "costCenter",
+          "justification",
+          "requiredApprovalRole",
+          "state",
+          "createdAt",
+          "updatedAt",
+          "version",
+          "audit"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "requesterId": {
+            "type": "string"
+          },
+          "costCenter": {
+            "type": "string"
+          },
+          "justification": {
+            "type": "string"
+          },
+          "requiredApprovalRole": {
+            "type": "string",
+            "enum": ["manager", "finance"]
+          },
+          "state": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          }
+        }
+      },
+      "AuditEvent": {
+        "type": "object",
+        "required": ["actorId", "action", "at"],
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["submitted", "approved", "rejected"]
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "nextAction": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
