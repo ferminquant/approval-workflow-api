@@ -20,7 +20,9 @@
     "build": "tsc --noEmit",
     "test": "vitest run",
     "start": "tsx src/server.ts",
-    "openapi:check": "tsx src/openapi/check-openapi.ts"
+    "openapi:check": "tsx src/openapi/check-openapi.ts",
+    "dotnet:build": "dotnet build csharp/ApprovalWorkflow.Api/ApprovalWorkflow.Api.csproj --configuration Release",
+    "dotnet:test": "dotnet test csharp/ApprovalWorkflow.Tests/ApprovalWorkflow.Tests.csproj --configuration Release && dotnet test csharp/ApprovalWorkflow.Api.Tests/ApprovalWorkflow.Api.Tests.csproj --configuration Release"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
