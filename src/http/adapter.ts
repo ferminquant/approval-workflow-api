@@ -8,7 +8,6 @@ import {
   rejectRequest,
 } from "../domain/approval-workflow.js";
 import {
-  type ApprovalRequestRepository,
   InMemoryApprovalRequestRepository,
 } from "./repository.js";
 
@@ -26,7 +25,7 @@ export interface HttpResponse {
 }
 
 export interface ApprovalWorkflowHandlerOptions {
-  repository?: ApprovalRequestRepository;
+  repository?: InMemoryApprovalRequestRepository;
   now?: () => Date;
   idGenerator?: () => string;
 }
@@ -78,7 +77,7 @@ export function createApprovalWorkflowHandler(options: ApprovalWorkflowHandlerOp
 async function runDecisionRoute(
   requestId: string,
   request: HttpRequest,
-  repository: ApprovalRequestRepository,
+  repository: InMemoryApprovalRequestRepository,
   operation: (stored: ApprovalRequest, actor: Actor) => ReturnType<typeof approveRequest>,
 ): Promise<HttpResponse> {
   const actor = parseActor(request.headers);
