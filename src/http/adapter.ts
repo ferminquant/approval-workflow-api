@@ -7,11 +7,6 @@ import {
   isApiError,
   rejectRequest,
 } from "../domain/approval-workflow.js";
-import {
-  type ApprovalRequestRepository,
-  InMemoryApprovalRequestRepository,
-} from "./repository.js";
-
 export interface HttpRequest {
   method: string;
   path: string;
@@ -26,13 +21,12 @@ export interface HttpResponse {
 }
 
 export interface ApprovalWorkflowHandlerOptions {
-  repository?: ApprovalRequestRepository;
   now?: () => Date;
   idGenerator?: () => string;
 }
 
 export function createApprovalWorkflowHandler(options: ApprovalWorkflowHandlerOptions = {}) {
-  const repository = options.repository ?? new InMemoryApprovalRequestRepository();
+  const requests = new Map<string, ApprovalRequest>();
 
   return async function handle(request: HttpRequest): Promise<HttpResponse> {
     if (request.method === "POST" && request.path === "/approval-requests") {
@@ -42,7 +36,7 @@ export function createApprovalWorkflowHandler(options: ApprovalWorkflowHandlerOp
       });
 
       if (!isApiError(result.body)) {
-        await repository.save(result.body);
+        requests.set(result.body.id, result.body);
       }
 
       return json(result.status, result.body);
@@ -51,7 +45,7 @@ export function createApprovalWorkflowHandler(options: ApprovalWorkflowHandlerOp
     const approveMatch = request.path.match(/^\/approval-requests\/([^/]+)\/approve$/);
 
     if (request.method === "POST" && approveMatch) {
-      return runDecisionRoute(approveMatch[1], request, repository, (stored, actor) =>
+      return runDecisionRoute(approveMatch[1], request, requests, (stored, actor) =>
         approveRequest(stored, actor, { now: options.now }),
       );
     }
@@ -61,7 +55,7 @@ export function createApprovalWorkflowHandler(options: ApprovalWorkflowHandlerOp
     if (request.method === "POST" && rejectMatch) {
       const reason = parseReason(request.body);
 
-      return runDecisionRoute(rejectMatch[1], request, repository, (stored, actor) =>
+      return runDecisionRoute(rejectMatch[1], request, requests, (stored, actor) =>
         rejectRequest(stored, actor, reason, { now: options.now }),
       );
     }
@@ -78,7 +72,7 @@ export function createApprovalWorkflowHandler(options: ApprovalWorkflowHandlerOp
 async function runDecisionRoute(
   requestId: string,
   request: HttpRequest,
-  repository: ApprovalRequestRepository,
+  requests: Map<string, ApprovalRequest>,
   operation: (stored: ApprovalRequest, actor: Actor) => ReturnType<typeof approveRequest>,
 ): Promise<HttpResponse> {
   const actor = parseActor(request.headers);
@@ -92,7 +86,7 @@ async function runDecisionRoute(
     });
   }
 
-  const stored = await repository.get(requestId);
+  const stored = requests.get(requestId);
 
   if (!stored) {
     return json(404, {
@@ -106,7 +100,7 @@ async function runDecisionRoute(
   const result = operation(stored, actor);
 
   if (!isApiError(result.body)) {
-    await repository.save(result.body);
+    requests.set(result.body.id, result.body);
   }
 
   return json(result.status, result.body);
